@@ -172,3 +172,18 @@ on <org>/<target-repo>.
 
 After filing, a member of the target team comments `/repro-confirmed` to validate it — only then
 does it count on the scoreboard.
+
+## Confirming a fix (the Fix-review round)
+
+When a team you broke ships a fix, **you** (the team that filed the break) verify it — a fix is
+not credited on the target's say-so:
+
+1. The target opens a PR with `closes #N` and merges it. The issue closes and is labeled
+   `fix-claimed` (it shows as **fix-review** in the Break feed). It does **not** score the fix yet.
+2. **Re-run your exact break** against the target's now-fixed running app.
+   - If the break is **gone**, comment **`/fix-confirmed`** on the issue → it's labeled `fixed`
+     and the fix scores for the target.
+   - If the break **still reproduces**, comment **`/fix-failed`** with the evidence → the issue
+     reopens (`fix-rejected`) and the target must try again.
+
+Only the **breaker who filed the issue** (or a facilitator) may confirm or reject a fix.
