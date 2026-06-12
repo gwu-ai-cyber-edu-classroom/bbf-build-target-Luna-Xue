@@ -41,6 +41,8 @@ ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")   # the only id/token shape we acce
 MAX_BYTES = 64 * 1024                           # request-body ceiling (P4)
 HANDOVER_TTL = 60.0                             # seconds a pending handover stays valid (P3)
 AUDIT_CAP = 500                                 # keep the audit log bounded
+MAX_GNBS = 5000                                 # bound state growth (anti-exhaustion, P3)
+MAX_UES = 5000
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_BYTES
@@ -181,12 +183,12 @@ def dashboard():
 
 @app.get("/amf/state")
 def amf_state():
-    """Read-only snapshot for the dashboard (no tokens, no canary)."""
-    return jsonify({
-        "gnbs": [{"gnb_id": g, "registered_at": GNBS[g]["registered_at"]} for g in GNBS],
-        "ues": [_ue_public(u) for u in UES],
-        "audit": AUDIT[-50:],
-    })
+    """Per-gNB snapshot for the dashboard. Requires a token; a caller only ever sees
+    the UEs it serves and its own audit events (no cross-gNB / bulk disclosure)."""
+    gnb_id = _authenticate()
+    my_ues = [_ue_public(u) for u in UES if UES[u]["serving_gnb"] == gnb_id]
+    my_audit = [a for a in AUDIT if a["actor_gnb"] == gnb_id][-50:]
+    return jsonify({"gnb_id": gnb_id, "ues": my_ues, "audit": my_audit})
 
 
 # --------------------------------------------------------------------------- #
@@ -198,6 +200,8 @@ def gnb_register():
     gnb_id = _require_id(data, "gnb_id")
     if gnb_id in GNBS:
         raise ApiError(409, "gNB already registered.")
+    if len(GNBS) >= MAX_GNBS:
+        raise ApiError(429, "Too many gNBs registered.")
     token = secrets.token_urlsafe(24)            # server-issued credential
     GNBS[gnb_id] = {"token": token, "registered_at": _now()}
     _TOKEN_INDEX[token] = gnb_id
@@ -216,11 +220,14 @@ def ue_attach():
         raise ApiError(403, "gnb_id must match the authenticated gNB.")
     if ue_id in UES:
         raise ApiError(409, "UE already attached.")   # prevents silent re-attach hijack
+    if len(UES) >= MAX_UES:
+        raise ApiError(429, "Too many UE contexts.")
     UES[ue_id] = {
         "serving_gnb": gnb_id,
         "ue_state": "CONNECTED",
         "pdu_state": "ACTIVE",
         "handover": None,
+        "security_context": None,    # only the AMF's protected internal UE carries one
     }
     _log("ue_attach", gnb_id, ue_id, "ALLOW", f"serving={gnb_id}")
     return jsonify(_ue_public(ue_id)), 201
@@ -228,8 +235,10 @@ def ue_attach():
 
 @app.get("/ue/<ue_id>/state")
 def ue_state(ue_id: str):
-    if not ID_RE.match(ue_id) or ue_id not in UES:
-        raise ApiError(404, "UE not found.")
+    gnb_id = _authenticate()
+    ue = UES.get(ue_id) if ID_RE.match(ue_id) else None
+    if ue is None or ue["serving_gnb"] != gnb_id:
+        raise ApiError(404, "UE not found.")   # same 404 whether missing or not-owned (no oracle)
     return jsonify(_ue_public(ue_id))
 
 
@@ -308,12 +317,20 @@ def path_switch():
     ue["ue_state"] = "CONNECTED"
     ue["handover"] = None
     _log("path_switch", gnb_id, ue_id, "ALLOW", f"serving gNB -> {gnb_id}")
-    return jsonify(_ue_public(ue_id))
+    # Real 5G: PathSwitchRequestAck delivers the UE security context to the NEW serving
+    # gNB. It is disclosed ONLY here, ONLY to the gNB that completed a valid handover —
+    # so a UE's security context can leave the AMF only through an authorized switch.
+    result = _ue_public(ue_id)
+    if ue.get("security_context"):
+        result["security_context"] = ue["security_context"]
+    return jsonify(result)
 
 
 @app.get("/audit-log")
 def audit_log():
-    return jsonify({"audit": AUDIT[-100:]})
+    gnb_id = _authenticate()
+    mine = [a for a in AUDIT if a["actor_gnb"] == gnb_id]
+    return jsonify({"audit": mine[-100:]})
 
 
 # --------------------------------------------------------------------------- #
