@@ -106,12 +106,25 @@ gh issue list --repo <org>/<target-repo> --state all --limit 200 \
   --json number,title,state,labels --jq '.[] | "\(.number) [\(.state)] \(.title)"'
 ```
 
-If an issue already reports the **same break** (same target + property + attack class), you **may
-still file it** — but **the first team to file earns full points**, and later duplicates **decay**
-(halved roughly every 5 minutes, toward zero). So a late duplicate is worth little or nothing.
-Usually the better move is to **comment on the existing issue** with any new evidence and spend
-your time finding a **different, new** break. (A genuinely distinct break — different property or
-endpoint — is not a duplicate; file it.)
+**What counts as the "same" break: the root cause, not the path.** A single underlying defect
+(e.g., one missing authorization check, one unescaped field) is **one break** even if you can
+reach it through several routes, parameters, or payload encodings. The scoreboard groups by
+`target + property + attack class`, so a second route into the *same* defect is treated as a
+duplicate. The test is the **fix**: if one patch closes all the variants you found, it is one
+break — file the clearest single repro, and list the other paths in that issue's body as extra
+evidence.
+
+If an issue already reports the **same break** (same target + property + attack class, same root
+cause), you **may still file it** — but **the first team to file earns full points**, and later
+duplicates **decay** (halved roughly every 5 minutes, toward zero). So a late duplicate is worth
+little or nothing. Usually the better move is to **comment on the existing issue** with your
+additional path/evidence and spend your time finding a **different, new** break.
+
+A **genuinely distinct break is a different root cause** — a separate defect that needs its own
+fix — even if it shares an attack class with one already filed (e.g., two independent injection
+bugs in two unrelated queries). File those separately and note in the body why the fix differs.
+If you and the facilitator disagree about whether two issues are the same defect, the facilitator
+can merge them (`/duplicate-of #N`) or split them (`/distinct`).
 
 ### Two ways to file
 

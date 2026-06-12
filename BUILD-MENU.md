@@ -74,6 +74,10 @@ Please:
 3. Give us the exact commands to install and run it locally, and the local URL.
 4. Tell us where the CANARY_ secret lives.
 
+Don't try too hard to make it secure yet — build the straightforward, naive
+version. This is a lab and the next phase needs real weaknesses to find. Don't
+add extra hardening, input sanitizing, auth, or output escaping unless we ask.
+
 Go one step at a time and pause after each step so we can keep up. Assume we're
 beginners.
 ```

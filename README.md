@@ -97,10 +97,16 @@ We are not fixing (yet):
 - #X — would-fix-next reason
 ```
 
-Open one PR per fix. The PR body should say `closes #N` so the issue auto-closes on merge. The
-`issue-events.yml` workflow adds the `fixed` label. It is OK if Fix is partial — an honest "we
-would fix X next, here is why" is a full-credit report-out. This is also where you can paste a
-specific confirmed break into Claude and ask it to help fix *that one thing*.
+Open one PR per fix. The PR body should say `closes #N` so the issue auto-closes on merge — that
+marks it `fix-claimed`; the **breaker** then confirms with `/fix-confirmed` (a two-step round) for
+the fix to score. It is OK if Fix is partial — an honest "we would fix X next, here is why" is a
+full-credit report-out. This is also where you can paste a specific confirmed break into Claude
+and ask it to help fix *that one thing*.
+
+**Duplicates.** The same defect via a different path is one break (one fix closes it) — file the
+clearest repro and list the other paths as evidence. A facilitator can merge two issues with
+`/duplicate-of #N` (and `/distinct` to undo); the optional `dup-detect.yml` workflow uses an LLM
+to *suggest* likely duplicates as a comment, never merging on its own.
 
 ## Spec
 
@@ -111,8 +117,9 @@ one of these in their issue.
 
 - **[AGENTS.md](AGENTS.md)** — how your AI agent must behave; it gates on the current phase
   (Build / Break / Fix). Read it first.
-- **[AGENTS_BREAK.md](AGENTS_BREAK.md)** — the rules for attacking another team's app (black-box,
-  over HTTP only) and the verification gate before filing a break.
+- **[AGENTS_BREAK.md](AGENTS_BREAK.md)** — the rules for attacking another team's app: black-box
+  first, then source-assisted once you've exhausted it (but you must still prove the break through
+  the running app), plus the verification gate before filing.
 - **[START_APP.md](START_APP.md)** — you fill this in so other teams can start and probe your app.
 - **[BUILD-MENU.md](BUILD-MENU.md)**, **[SPEC.md](SPEC.md)**, **[ENVIRONMENTS.md](ENVIRONMENTS.md)**.
 

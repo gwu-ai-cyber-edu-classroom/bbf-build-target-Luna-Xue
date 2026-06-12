@@ -6,6 +6,10 @@ name: issue-events
 #   /out-of-scope     (facilitator) -> invalid
 #   /fix-confirmed    (breaker)     -> fixed       (fix verified by the team that filed it)
 #   /fix-failed       (breaker)     -> fix-rejected + reopen (the fix didn't hold)
+#   /duplicate-of #N  (facilitator) -> duplicate + dup-of:N   (merge this break into #N's group:
+#                                      it stops earning points and stops counting against the
+#                                      target, because it is the same root-cause defect as #N)
+#   /distinct         (facilitator) -> remove duplicate / dup-of:* (undo a merge)
 # Plus: when a merged PR closes a valid issue, it becomes `fix-claimed`
 # (awaiting the breaker's confirmation) — not `fixed` until the breaker confirms.
 #
@@ -65,6 +69,28 @@ jobs:
                 addl fix-rejected; reml fixed; reml fix-claimed
                 gh issue reopen "$ISSUE" -R "$REPO" || true
               else echo "::notice::/fix-failed ignored: only the breaker who filed this issue (or a facilitator) can reject the fix"; fi ;;
+            /duplicate-of*)
+              # Facilitator merges this break into another issue's group (same root-cause defect).
+              if is_facilitator; then
+                N=$(printf '%s' "$CMD" | grep -oE '#?[0-9]+' | head -n1 | tr -d '#')
+                if [[ -n "$N" ]]; then
+                  ensure duplicate C5DEF5 "Same root-cause defect as another break"
+                  ensure "dup-of:$N" C5DEF5 "Merged into break #$N for scoring"
+                  # drop any stale dup-of:* before adding the new one
+                  gh issue view "$ISSUE" -R "$REPO" --json labels --jq '.labels[].name' \
+                    | grep -E '^dup-of:[0-9]+$' | grep -vx "dup-of:$N" \
+                    | while read -r L; do reml "$L"; done
+                  addl duplicate; addl "dup-of:$N"
+                  echo "::notice::marked #$ISSUE as duplicate of #$N"
+                else echo "::error::/duplicate-of needs an issue number, e.g. /duplicate-of #12"; fi
+              else echo "::notice::/duplicate-of ignored: commenter is not a facilitator"; fi ;;
+            /distinct*)
+              if is_facilitator; then
+                reml duplicate
+                gh issue view "$ISSUE" -R "$REPO" --json labels --jq '.labels[].name' \
+                  | grep -E '^dup-of:[0-9]+$' | while read -r L; do reml "$L"; done
+                echo "::notice::#$ISSUE un-merged (now scored as a distinct break)"
+              else echo "::notice::/distinct ignored: commenter is not a facilitator"; fi ;;
             *) : ;;
           esac
 

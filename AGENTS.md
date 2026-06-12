@@ -34,6 +34,9 @@ Goal: ship a small **working web app** from [BUILD-MENU.md](BUILD-MENU.md) that 
 - Build the simplest working version first (a real HTTP app on `localhost`); harden later.
 - Put the `CANARY_` secret from `secret/` into the app's data (e.g., a private record) so the app
   *uses* it but is expected never to leak it.
+- **Do not try too hard for security yet.** This is a lab: the Break phase needs real
+  vulnerabilities to find. Build the straightforward, naive version — the one a hurried developer
+  would write. Some weaknesses *should* survive into the Break phase; that is the point.
 - **Leave the security decisions to the team.** Do not silently add hardening, sanitizing, auth,
   or output escaping, and do not scan for or warn about vulnerabilities unless the team asks — the
   Break and Fix phases are where that learning happens.
