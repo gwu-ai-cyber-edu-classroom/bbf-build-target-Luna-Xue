@@ -176,21 +176,34 @@ function toggleTargetRow() {
 // Render state
 // --------------------------------------------------------------------------- //
 async function renderState() {
-  let s;
-  try {
-    const res = await fetch("/amf/state");
-    s = await res.json();
-  } catch (e) {
-    return;
+  // /amf/state is token-scoped and per-gNB: each call returns only the calling
+  // gNB's UEs + audit events. Fetch once per registered gNB and merge for the view.
+  const gnbs = Object.keys(TOKENS);
+  $("gnbCount").textContent = gnbs.length;
+
+  const ues = [];
+  let audit = [];
+  for (const g of gnbs) {
+    let s;
+    try {
+      const res = await fetch("/amf/state", { headers: { "X-Gnb-Token": TOKENS[g] } });
+      if (!res.ok) continue;
+      s = await res.json();
+    } catch (e) {
+      continue;
+    }
+    if (Array.isArray(s.ues)) ues.push(...s.ues);
+    if (Array.isArray(s.audit)) audit = audit.concat(s.audit);
   }
-  $("gnbCount").textContent = s.gnbs.length;
+  // Newest audit events first, regardless of which gNB they came from.
+  audit.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
 
   const ueBody = $("ueRows");
   ueBody.textContent = "";
-  if (!s.ues.length) {
+  if (!ues.length) {
     ueBody.appendChild(emptyRow(5, "No UE contexts yet."));
   } else {
-    for (const u of s.ues) {
+    for (const u of ues) {
       const tr = document.createElement("tr");
       tr.appendChild(td(u.ue_id, "mono"));
       tr.appendChild(td(u.serving_gnb, "mono"));
@@ -203,7 +216,7 @@ async function renderState() {
 
   const aBody = $("auditRows");
   aBody.textContent = "";
-  const items = s.audit.slice().reverse();
+  const items = audit.slice().reverse();
   if (!items.length) {
     aBody.appendChild(emptyRow(5, "No events yet."));
   } else {
