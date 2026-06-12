@@ -21,6 +21,37 @@ day fair and comparable. See BUILD-MENU.md for the menu and a beginner-friendly 
 scaffold your first version, and **[AGENTS.md](AGENTS.md)** for how your AI agent should behave in
 each phase (Build / Break / Fix).
 
+## What we built — N2Bind-Lite (5G AMF state tracker)
+
+A Flask web app that simulates a 5G **AMF** tracking **UE↔gNB binding** over a simplified NGAP/N2
+surface, with a live dashboard at `/`. Full project spec: [AI-RAN.md](AI-RAN.md). How to run and
+probe it: [START_APP.md](START_APP.md).
+
+**Run:** `.venv/bin/python amf.py` → open http://127.0.0.1:8000  ·  **Entry point:** `amf.py`
+
+**API** (JSON; NGAP ops need header `X-Gnb-Token` from `POST /gnb/register`):
+
+| Method & path | Purpose |
+|---|---|
+| `POST /gnb/register` | register a gNB → issues its token |
+| `POST /ue/attach` | attach a UE to the calling gNB (CONNECTED / ACTIVE) |
+| `GET  /ue/<id>/state` | read a UE's public state |
+| `POST /ngap/ue-context-release` | release UE context (serving gNB only) |
+| `POST /ngap/pdu-session-release` | release PDU session (serving gNB only) |
+| `POST /ngap/handover-required` | serving gNB starts handover → `HANDOVER_PENDING` |
+| `POST /ngap/path-switch` | pending-handover target completes the switch |
+| `GET  /audit-log` | redacted event log |
+
+**Design note — how UE↔gNB binding is enforced:** the acting gNB is derived from the request
+**token**, never from a self-asserted `sender_gnb` field. Every sensitive op checks that the
+authenticated gNB **owns** the UE (`serving_gnb`); path-switch is restricted to the pending
+handover **target** via a one-time, expiring transaction (replay/stale → rejected). The `CANARY_`
+in `secret/canary.txt` is held in memory and never returned by any endpoint, log, or error.
+
+This satisfies both AI-RAN.md's P1–P6 and SPEC.md's P1–P5 (it's a secure web app: token-gated
+authorization = no IDOR/P5, parameter-free in-memory store + strict validation = P3/P4, canary
+never emitted = P1).
+
 ## Set up your environment
 
 See [ENVIRONMENTS.md](ENVIRONMENTS.md). In order of preference: your own laptop → a local,

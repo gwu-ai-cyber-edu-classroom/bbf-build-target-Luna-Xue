@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>N2Bind-Lite · AMF Console</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">📡</span>
+      <div>
+        <h1>N2Bind-Lite</h1>
+        <p class="sub">5G AMF control-plane console · UE ↔ gNB state binding</p>
+      </div>
+    </div>
+    <div class="stat"><span id="gnbCount">0</span><label>registered gNBs</label></div>
+  </header>
+
+  <main class="grid">
+    <!-- LEFT: control panel -->
+    <section class="col">
+      <div class="card">
+        <h2>1 · gNB Registry</h2>
+        <p class="hint">Register a gNB to receive its token (held in this page only).</p>
+        <div class="row">
+          <input id="gnbId" type="text" placeholder="gNB-A" autocomplete="off">
+          <button id="btnRegister" class="primary">Register</button>
+        </div>
+        <div id="gnbList" class="chips"></div>
+      </div>
+
+      <div class="card">
+        <h2>2 · Attach UE</h2>
+        <p class="hint">Creates a UE context bound to the selected gNB (CONNECTED / ACTIVE).</p>
+        <div class="row">
+          <input id="attachUe" type="text" placeholder="UE-001" autocomplete="off">
+          <select id="attachGnb" title="serving gNB"></select>
+          <button id="btnAttach" class="primary">Attach</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>3 · NGAP Operation</h2>
+        <div class="field">
+          <label>Operation</label>
+          <select id="opType">
+            <option value="ue-context-release">UE Context Release</option>
+            <option value="pdu-session-release">PDU Session Release</option>
+            <option value="handover-required">Handover Required</option>
+            <option value="path-switch">Path Switch</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Acting gNB <span class="tag">token = who you really are</span></label>
+          <select id="opGnb"></select>
+        </div>
+        <div class="field">
+          <label>UE ID</label>
+          <input id="opUe" type="text" placeholder="UE-001" autocomplete="off">
+        </div>
+        <div class="field hidden" id="targetRow">
+          <label>Target gNB</label>
+          <select id="opTarget"></select>
+        </div>
+        <div class="field">
+          <label>Claimed <code>sender_gnb</code> <span class="tag warn">spoof · server ignores it</span></label>
+          <input id="opSpoof" type="text" placeholder="(optional) e.g. gNB-A" autocomplete="off">
+        </div>
+        <button id="btnSend" class="primary block">Send NGAP request</button>
+        <div class="presets">
+          <span class="hint">Try an attack:</span>
+          <button id="presetCross" class="ghost">gNB-B releases UE-001</button>
+          <button id="presetSpoof" class="ghost">…spoof sender_gnb=gNB-A</button>
+          <button id="presetFakeSwitch" class="ghost">gNB-B fakes path-switch UE-003</button>
+          <button id="presetHandover" class="ghost">legit: A→B handover UE-001</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Demo</h2>
+        <div class="row">
+          <button id="btnDemo" class="secondary">Load demo (gNB-A/B/C + UE-001/2/3)</button>
+        </div>
+        <p class="hint">State is in-memory — restarting the server resets everything.</p>
+      </div>
+    </section>
+
+    <!-- RIGHT: monitor -->
+    <section class="col">
+      <div class="card">
+        <h2>AMF State · UE contexts</h2>
+        <table>
+          <thead><tr><th>UE</th><th>Serving gNB</th><th>UE state</th><th>PDU</th><th>HO target</th></tr></thead>
+          <tbody id="ueRows"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Audit Log</h2>
+        <table>
+          <thead><tr><th>Time (UTC)</th><th>Event</th><th>Actor</th><th>UE</th><th>Decision</th></tr></thead>
+          <tbody id="auditRows"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Console · request / response</h2>
+          <button id="btnClearConsole" class="ghost sm">clear</button>
+        </div>
+        <div id="console" class="console"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
